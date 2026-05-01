@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Tripas de Gato Náhuatl</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* 1. Color de letras azul y primario azul marino */
+        :root {
+            --bg: #fdfaf6;
+            --primario: #1a2a6c;
+            --azul-letras: #2980b9;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Arial Rounded MT Bold', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            width: 100vw;
+            /* 2. Scroll activado */
+            overflow-y: auto;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            padding: 12px;
+            border-bottom: 4px solid var(--primario);
+            flex-shrink: 0;
+            gap: 15px;
+        }
+
+        .header-img {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+        }
+
+        .credits {
+            text-align: center;
+        }
+
+        .credits h2 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--primario);
+            text-transform: uppercase;
+        }
+
+        .credits p {
+            margin: 0;
+            font-size: 0.6rem;
+            color: #666;
+            font-weight: bold;
+        }
+
+        #game-container {
+            position: relative;
+            background: #ffffff;
+            margin: 10px auto;
+            width: 95vw;
+            height: 70vh;
+            /* Altura controlada para el scroll */
+            border: 2px solid #ddd;
+            border-radius: 15px;
+            touch-action: pinch-zoom;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .punto {
+            position: absolute;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            color: #1a2a6c !important;
+            border: 2px solid rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 55px;
+            text-align: center;
+            line-height: 1.1;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .simbolo {
+            font-size: 0.9rem;
+        }
+
+        .conectado {
+            opacity: 0.15;
+            pointer-events: none;
+            transform: scale(0.8);
+        }
+
+        .controles {
+            display: flex;
+            gap: 10px;
+            padding: 12px 12px 40px 12px;
+            width: 100%;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            color: white;
+            flex: 1;
+            max-width: 130px;
+        }
+
+        .btn-deshacer {
+            background: #fdcb6e;
+            color: #2d3436;
+        }
+
+        .btn-reset {
+            background: #00b894;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header-container">
+        <img src="https://i.pinimg.com/originals/41/ed/59/41ed59dbbdc9f3d69f3ce50a75a83543.png"
+            class="header-img">
+        <div class="credits">
+            <h2>Taller de Náhuatl para niños</h2>
+            <p>Tallerista: Alejandro Pérez | Colaboradora: Ana O. Rioja</p>
+            <p>Developer: Ezequiel Mendoza</p>
+        </div>
+        <img src="https://preview.redd.it/what-is-this-creature-drawing-i-think-its-mesoamerican-like-v0-67w6vrvyipgc1.png?width=1079&format=png&auto=webp&s=8435637770a421a2be6a08d8b5d9a0fff46c483c"
+            class="header-img">
+    </div>
+
+    <div id="game-container">
+        <canvas id="canvasJuego"></canvas>
+    </div>
+
+    <div class="controles">
+        <button class="btn-deshacer" onclick="deshacer()">↩️ Deshacer</button>
+        <button class="btn-reset" onclick="confirmarReinicio()">🔄 Reiniciar</button>
+    </div>
+
+    <script>
+        const container = document.getElementById('game-container');
+        const canvas = document.getElementById('canvasJuego');
+        const ctx = canvas.getContext('2d');
+
+        const parejas = [
+            { s: "●", t: "Ce" }, { s: "●●", t: "Ome" }, { s: "●●●", t: "Yei / Eyi" },
+            { s: "●●●●", t: "Nahui" }, { s: "▬", t: "Macuill" },
+            { s: "●<br>▬", t: "Chicuace" }, { s: "●●<br>▬", t: "Chicome" },
+            { s: "●●●<br>▬", t: "Chicueyi" }, { s: "●●●●<br>▬", t: "Chicnahui" },
+            { s: "▬<br>▬", t: "Mahtlactli" }
+        ];
+
+        const listaColores = ['#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA', '#FF9AA2', '#FDFD96', '#D0F0C0', '#E0BBE4', '#B2E2F2'];
+        let puntosData = [], lineasGuardadas = [], dibujando = false, puntoInicio = null, trazoActual = [];
+
+        function initGame() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            dibujando = false; lineasGuardadas = []; trazoActual = []; puntosData = [];
+            container.querySelectorAll('.punto').forEach(p => p.remove());
+
+            const margin = 0.12;
+            const safeW = canvas.width * (1 - margin * 2);
+            const safeH = canvas.height * (1 - margin * 2);
+            const rows = 5, cols = 4;
+            let celdas = [];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const jitterX = (Math.random() - 0.5) * 20;
+                    const jitterY = (Math.random() - 0.5) * 20;
+                    celdas.push({
+                        x: (canvas.width * margin) + (c * safeW / (cols - 1)) + jitterX,
+                        y: (canvas.height * margin) + (r * safeH / (rows - 1)) + jitterY
+                    });
+                }
+            }
+
+            celdas.sort(() => Math.random() - 0.5);
+            let coloresMezclados = [...listaColores].sort(() => Math.random() - 0.5);
+
+            parejas.forEach((par, i) => {
+                const p1 = celdas.pop(), p2 = celdas.pop();
+                puntosData.push({ id: i, label: par.s, x: p1.x, y: p1.y, color: coloresMezclados[i % 10], tipo: 'simbolo' });
+                puntosData.push({ id: i, label: par.t, x: p2.x, y: p2.y, color: coloresMezclados[(i + 3) % 10], tipo: 'texto' });
+            });
+
+            puntosData.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = `punto ${p.tipo === 'simbolo' ? 'simbolo' : ''}`;
+                div.id = `pt-${index}`;
+                div.style.backgroundColor = p.color;
+                div.innerHTML = p.label;
+                container.appendChild(div);
+                div.style.left = (p.x - div.offsetWidth / 2) + 'px';
+                div.style.top = (p.y - div.offsetHeight / 2) + 'px';
+
+                const start = (e) => {
+                    if (e.touches && e.touches.length > 1) return;
+                    if (lineasGuardadas.some(l => l.id === p.id)) return;
+                    dibujando = true; puntoInicio = { ...p, index };
+                    trazoActual = [{ x: p.x, y: p.y }];
+                };
+                div.addEventListener('mousedown', start);
+                div.addEventListener('touchstart', start);
+            });
+            render();
+        }
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        const move = (e) => {
+            if (!dibujando) return;
+            const pos = getCoords(e);
+            for (let linea of lineasGuardadas) {
+                for (let pt of linea.camino) {
+                    if (Math.hypot(pt.x - pos.x, pt.y - pos.y) < 4) { cancelar("¡Chocaste!"); return; }
+                }
+            }
+            trazoActual.push(pos); render();
+        };
+
+        const end = (e) => {
+            if (!dibujando) return;
+            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const el = document.elementFromPoint(clientX, clientY);
+
+            if (el && el.classList.contains('punto')) {
+                const idx = el.id.split('-')[1];
+                if (puntosData[idx].id === puntoInicio.id && idx != puntoInicio.index) {
+                    lineasGuardadas.push({ id: puntoInicio.id, camino: [...trazoActual], color: puntoInicio.color });
+                    document.getElementById(`pt-${puntoInicio.index}`).classList.add('conectado');
+                    document.getElementById(`pt-${idx}`).classList.add('conectado');
+                    if (lineasGuardadas.length === 10) Swal.fire('¡Mahtlactli!', '¡Excelente!', 'success');
+                } else { cancelar("Esa no es su pareja"); }
+            }
+            dibujando = false; trazoActual = []; render();
+        };
+
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', move, { passive: false });
+        window.addEventListener('mouseup', end);
+        window.addEventListener('touchend', end);
+
+        function cancelar(msj) {
+            dibujando = false; trazoActual = []; render();
+            Swal.fire({ title: '¡Ups!', text: msj, icon: 'warning', timer: 600, showConfirmButton: false, toast: true, position: 'top' });
+        }
+
+        function deshacer() {
+            if (lineasGuardadas.length > 0) {
+                const ultima = lineasGuardadas.pop();
+                puntosData.forEach((p, i) => { if (p.id === ultima.id) document.getElementById(`pt-${i}`).classList.remove('conectado'); });
+                render();
+            }
+        }
+
+        function confirmarReinicio() {
+            Swal.fire({ title: '¿Reiniciar?', icon: 'question', showCancelButton: true }).then(r => { if (r.isConfirmed) initGame(); });
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            /* 3. Líneas delgadas originales */
+            ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            lineasGuardadas.forEach(l => {
+                ctx.beginPath(); ctx.strokeStyle = l.color;
+                ctx.moveTo(l.camino[0].x, l.camino[0].y);
+                l.camino.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+            });
+            if (dibujando && trazoActual.length > 0) {
+                ctx.beginPath(); ctx.strokeStyle = puntoInicio.color;
+                ctx.moveTo(trazoActual[0].x, trazoActual[0].y);
+                trazoActual.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+            }
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+
+</html>
